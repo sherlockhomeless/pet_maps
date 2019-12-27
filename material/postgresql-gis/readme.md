@@ -6,9 +6,6 @@
 [Link](https://hub.docker.com/r/mdillon/postgis/)
 # Usage
 
-*Run once to create container*:
-
-    docker run --name some-postgis -e POSTGRES_PASSWORD=mysecretpassword -d mdillon/postgis
 
 *show all images:*
 
@@ -20,7 +17,7 @@
 
 *connect that thing with other postgresql:*
 
-    docker run -it --link <NAME GIVEN AT CREATION OF CONTAINER> :postgres --rm postgres \                                                                                                                             
+    docker run -it --link <NAME GIVEN AT CREATION OF CONTAINER> :postgres --rm postgres \
     sh -c 'exec psql -h "$POSTGRES_PORT_5432_TCP_ADDR" -p "$POSTGRES_PORT_5432_TCP_PORT" -U postgres'
 
 *run after already creating container*:
@@ -51,3 +48,17 @@
   - Polygones ([l1,l2,l3,...] closed)
 
 * shp2pgsql => shape to sql
+
+
+## Map-Data => postGIS
+
+[converter-script](https://github.com/openstreetmap/osm2pgsql)
+* Install: sudo apt install osm2pgsql
+* Enable hstore: in psql: CREATE EXTENSION hstore;
+* Convert: osm2pgsql berlin-latest.osm.pbf -d khama -H localhost -P 5432 -U khama --hstore
+## QGIS: GUI for POSTGIS
+
+[Link](https://www.qgis.org/en/site/forusers/alldownloads.html#debian-ubuntu)
+* Install:
+  - sudo add-apt-repository ppa:ubuntugis/ppa
+  - sudo apt install qgis  
