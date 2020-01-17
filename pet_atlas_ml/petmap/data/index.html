@@ -1,0 +1,267 @@
+{% load leaflet_tags %}
+{%  load static %}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Pet map Berlin Portal</title>
+    {% leaflet_js %}
+    {% leaflet_css %}
+
+
+    <link rel="stylesheet" href="{% static 'groupedlayercontrol/leaflet.groupedlayercontrol.css' %}">
+    <script src="{% static 'groupedlayercontrol/leaflet.groupedlayercontrol.js' %}"></script>
+    <script src="{% static 'js/mousePosition.js' %}"></script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+
+
+
+
+
+    <style>
+        #world {height: 600px; width: 100%; }
+        .info { padding: 6px 8px; font: 14px/16px Arial, Helvetica, sans-serif; background: white;
+            background: rgba(255,255,255,0.8); box-shadow: 0 0 15px rgba(0,0,0,0.2); border-radius: 5px; }
+        .info h4 { margin: 0 0 5px; color: #777; }
+    </style>
+</head>
+<body>
+    <div id="world"></div>
+    <div class="jumbotron text-center"><h2>Pet map FU Berlin 2019/2020</h2></div>
+</body>
+<script>
+    let map = L.map('world', {
+        center: [52.520008, 13.404954],
+        zoom: 10,
+    });
+
+    let osm = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    });
+
+    let topo = L.tileLayer('http://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        attribution: 'Map data: &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, ' +
+            '<a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> ' +
+            '(<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+    });
+
+    let satellit = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18, attribution: 'Map data © Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+    });
+
+    // osm is added to map
+    osm.addTo(map);
+
+    // Loading incidences
+    let incidences = L.geoJSON(null, {
+        pointToLayer: function (feature, latlng) {
+            return L.marker(latlng, {
+                icon: L.icon({
+                    iconUrl: "static/img/red.png",
+                    iconSize: [28, 32],
+                    iconAnchor: [52.50953, 13.39508],
+                    popupAnchor: [52.50953, 13.39508]
+                }),
+                title: feature.properties.gemeinde_n,
+                riseOnHover: true
+            });
+        },
+    }).addTo(map);
+
+    let incidencesUrl = 'incidences';
+    $.getJSON(incidencesUrl, function (data) {
+        incidences.addData(data);
+    });
+
+    // get color depending on gemeinde_s value
+    function getColor(g_s) {
+        return g_s == 1 ? '#800026':
+            g_s == 2 ? '#BD0026':
+                g_s == 3 ? '#E31A1C':
+                    g_s == 4 ? '#FC4E2A':
+                        g_s == 5 ? '#FD8D3C':
+                            g_s == 6 ? 'FEB24C':
+                                g_s == 7 ? '#FED976':
+                                    g_s == 8 ? '#eb34d3':
+                                        g_s == 9 ? '#3446eb':
+                                            g_s == 10 ? '#429bf5':
+                                                g_s == 11 ? '#42cbf5':
+                                                    g_s == 12 ? '#f55d42':
+                                                        '#9c1902';
+    }
+
+    function style(feature) {
+        return {
+            weight: 2,
+            opacity: 1,
+            color: 'white',
+            dashArray: '3',
+            fillOpacity: 0.7,
+            fillColor: getColor(feature.properties.gemeinde_s)
+        };
+    }
+
+    function highlightFeature(e) {
+        var layer = e.target;
+
+        layer.setStyle({
+            weight: 5,
+            color: '#666',
+            dashArray: '',
+            fillOpacity: 0.7
+        });
+
+        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+			layer.bringToFront();
+		}
+
+		info.update(layer.feature.properties);
+    }
+
+    var counties;
+
+    function resetHighlight(e) {
+        counties.resetStyle(e.target);
+        info.update();
+    }
+
+    function zoomToFeature(e) {
+        map.fitBounds(e.target.getBounds());
+    }
+
+    function onEachFeature(feature, layer) {
+        layer.on({
+            mouseover: highlightFeature,
+            mouseout: resetHighlight,
+            click: zoomToFeature
+        });
+    }
+
+    counties = L.geoJSON( null, {
+        style : style,
+        onEachFeature: onEachFeature
+    }).addTo(map);
+
+
+/*/ Loading counties
+    var counties = L.geoJSON(null, {
+        style: function (feature) {
+            value = feature.properties.gemeinde_s;
+            if (value <= 3) {
+                return {
+                    fillColor: "#3446eb",
+                    weight: 2,
+                    opacity: 1,
+                    dashArray: '3',
+                    fillOpacity: 0.7,
+                    color: "white"
+                };
+            } else if (value > 3 && value <= 6) {
+                return {
+                    fillColor: "#eb3434",
+                    weight: 2,
+                    opacity: 1,
+                    dashArray: '3',
+                    fillOpacity: 0.7,
+                    color: "white"
+                };
+            } else if (value > 6 && value <= 9) {
+                return {
+                    fillColor: "#eb34d3",
+                    weight: 2,
+                    opacity: 1,
+                    dashArray: '3',
+                    fillOpacity: 0.7,
+                    color: "white"
+                };
+            } else {
+                return {
+                fillColor: "#ebc034",
+                weight: 2,
+                opacity: 1,
+                dashArray: '3',
+                fillOpacity: 0.7,
+                color: "white"
+            };}
+        },
+
+    }).addTo(map);*/
+
+
+    let countyUrl = 'county';
+
+    $.getJSON(countyUrl, function (data) {
+        counties.addData(data);
+    });
+
+    var baseLayers = {
+        "Open Street Map": osm,
+        "Topo Map": topo,
+        "Satellit": satellit
+    };
+
+    var groupedOverlayers = {
+        "Point Data": {
+            "incidences": incidences,
+        },
+        "Other": {
+            "Administrative Boundaries": counties,
+        },
+    };
+
+    // control that shows county info on hover
+    var info = L.control();
+
+    info.onAdd = function(props) {
+        this._div = L.DomUtil.create('div', 'info');
+        this.update();
+        return this._div;
+    };
+
+    info.update = function(props) {
+        this._div.innerHTML = '<h4>Animals information in Berlin</h4>' + (props ?
+        '<b>' + props.name + '</b><br />' + 'Total number of Animal is: '+ '<b>' + props.animal_cou + '</b><br />'+ 'Gemeinde_s is: ' + props.gemeinde_s
+        : 'Hover over a county');
+    };
+
+    info.addTo(map);
+
+    // Maps Tools
+    L.control.groupedLayers(baseLayers, groupedOverlayers).addTo(map);
+    L.control.mousePosition({position: "topright",}).addTo(map);
+    L.control.scale().addTo(map);
+
+/*
+    L.control.groupedLayers(baseLayers, groupedOverlayers).addTo(map);
+    L.control.mousePosition({position: "topright",}).addTo(map);
+    L.control.scale().addTo(map);
+    L.marker([52.49909, 13.26874]).addTo(map).bindPopup("Charlottenburg-Wilmersdorf").openPopup();
+    L.marker([52.4376, 13.38684]).addTo(map).bindPopup("Tempelhof-Schöneberg").openPopup();
+    L.marker([52.41331, 13.13965]).addTo(map).bindPopup("Steglitz-Zehlendorf").openPopup();
+    L.marker([52.5872, 13.16025]).addTo(map).bindPopup("Spandau").openPopup();
+    L.marker([52.64973, 13.29483]).addTo(map).bindPopup("Reinickendorf").openPopup();
+    L.marker([52.66389, 13.47748]).addTo(map).bindPopup("Pankow").openPopup();
+    L.marker([52.41247, 13.71094]).addTo(map).bindPopup("Treptow-Köpenick").openPopup();
+    L.marker([52.40661, 13.48846]).addTo(map).bindPopup("Neuköln").openPopup();
+    L.marker([52.58636, 13.53241]).addTo(map).bindPopup("Lichtenberg").openPopup();
+    L.marker([52.52625, 13.64227]).addTo(map).bindPopup("Marzahn-Hellersdorf").openPopup();
+    L.marker([52.5346, 13.36761]).addTo(map).bindPopup("Mitte").openPopup();
+    L.marker([52.51121, 13.44864]).addTo(map).bindPopup("Friedrichshain-Kreuzberg").openPopup();
+*/
+
+
+
+
+
+</script>
+</html>
