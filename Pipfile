@@ -7,7 +7,7 @@ verify_ssl = true
 
 [packages]
 django = "*"
-x6 = "*"
+scrapy = "*"
 
 [requires]
 python_version = "3.6"
