@@ -9,6 +9,7 @@ verify_ssl = true
 django = "*"
 scrapy = "*"
 termcolor = "*"
+pyshp = "*"
 
 [requires]
 python_version = "3.6"
