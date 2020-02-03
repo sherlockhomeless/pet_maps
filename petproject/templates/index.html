@@ -1,0 +1,315 @@
+{% load leaflet_tags %}
+{% load static %}
+
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <title>Pet map Berlin</title>
+        {% leaflet_js %}
+        {% leaflet_css %}
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+        <link rel="stylesheet" href="{% static 'groupedlayercontrol/leaflet.groupedlayercontrol.css' %}">
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+        <script src="{% static 'groupedlayercontrol/leaflet.groupedlayercontrol.js' %}"></script>
+        <script src="{% static 'js/mousePosition.js' %}"></script>
+
+<!--        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+
+
+<!--    &lt;!&ndash; Load Leaflet from CDN&ndash;&gt;-->
+<!--    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />-->
+<!--    <script src="https://unpkg.com/leaflet/dist/leaflet-src.js"></script>-->
+
+        <!-- Load Esri Leaflet from CDN -->
+        <script src="https://unpkg.com/esri-leaflet"></script>
+
+        <!-- Esri Leaflet Geocoder -->
+        <link rel="stylesheet" href="https://unpkg.com/esri-leaflet-geocoder/dist/esri-leaflet-geocoder.css">
+        <script src="https://unpkg.com/esri-leaflet-geocoder"></script>
+        
+
+        <style>
+            #petmap {
+                height: 90%;
+                width: 100%;
+                object-fit: contain;
+                padding: 20px;
+                resize: both;
+
+            }
+            .info {
+                padding: 6px 8px;
+                font: 14px/16px Arial, Helvetica, sans-serif;
+                background: white;
+                background: rgba(255,255,255,0.8);
+                box-shadow: 0 0 15px rgba(0,0,0,0.2);
+                border-radius: 5px;
+            }
+            .info h4 {
+                margin: 0 0 5px;
+                color: #777;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="petmap"></div>
+        <div class="jumbotron text-center"><h3>Pet map FU Berlin 2019/2020</h3></div>
+    </body>
+
+    <script>
+        // -----------------------Set up map-----------------------------
+        let map = L.map('petmap', {
+            center:[52.520008, 13.404954],
+            zoom: 10,
+        });
+
+        // Openstreetmap
+        let osm = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        });
+
+        // Topo map
+        let topo = L.tileLayer('http://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17,
+            attribution: 'Map data: &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, ' +
+                '<a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> ' +
+                '(<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+        });
+
+        // Satelite map
+        let satellit = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 18, attribution: 'Map data © Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+
+        osm.addTo(map);
+
+        // ------------------------Set up Location------------------------------------------------------
+        let locations = L.geoJson(null, {
+            pointToLayer:function(feature, latlng) {
+                return L.marker(latlng, {
+                    icon: L.icon({
+                        iconUrl: "static/img/red.png",
+                        iconSize: [28,32],
+                        iconAnchor:[12,28],
+                        popupAnchor: [0,-25]
+                    }),
+
+                    title:feature.properties.title,
+                    riseOnHover: true
+                });
+            },
+
+            onEachFeature: function (feature, layer) {
+                if (feature.properties) {
+                    let content = "<table class='table table-striped table-bordered table-condensed'>" +
+                        "<tr><th>Title</th><td>" + feature.properties.title + "</td></tr>" +
+                        "<tr><th>Date Reported</th><td>" + feature.properties.date_reported + "</td></tr>" +
+                        "<tr><th>Description</th><td>" + feature.properties.description + "</td></tr>" + "<table>";
+
+                    layer.on({
+                        click: function(e) {
+                            layer.bindPopup(content).openPopup(e.latlng);
+
+                        }
+                    })
+                }
+            }
+
+        }).addTo(map);
+
+        let locationsUrl = 'locations';
+
+        $.getJSON(locationsUrl, function(data){
+            locations.addData(data);
+        });
+
+        // -------------------------------- Set up Counties -------------------------------------------
+        function getColor(g_s) {
+            return g_s == 1 ? '#800026':
+                g_s == 2 ? '#BD0026':
+                    g_s == 3 ? '#E31A1C':
+                        g_s == 4 ? '#FC4E2A':
+                            g_s == 5 ? '#FD8D3C':
+                                g_s == 6 ? '#03dbfc':
+                                    g_s == 7 ? '#FED976':
+                                        g_s == 8 ? '#fcc203':
+                                            g_s == 9 ? '#3446eb':
+                                                g_s == 10 ? '#429bf5':
+                                                    g_s == 11? '#42cbf5':
+                                                        g_s == 12? '#f55d42':
+                                                            '#9c1902';
+
+        }
+
+        function style(feature) {
+            return {
+                weight: 2,
+                opacity: 1,
+                color: 'white',
+                dashArray: '3',
+                fillOpacity: 0.7,
+                fillColor: getColor(feature.properties.gemeinde_s)
+            };
+        }
+
+        function highlightFeature(e) {
+            var layer = e.target;
+
+            layer.setStyle({
+                weight: 5,
+                color: '#666',
+                dashArray: '',
+                fillOpacity: 0.7
+            });
+
+            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                layer.bringToFront();
+            }
+
+            info.update(layer.feature.properties);
+        }
+
+        var counties;
+
+        function resetHighlight(e) {
+            counties.resetStyle(e.target);
+            info.update();
+        }
+
+        function zoomToFeature(e) {
+            map.fitBounds(e.target.getBounds());
+        }
+
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight,
+                click: zoomToFeature
+            })
+        }
+
+        counties = L.geoJSON(null, {
+            style: style,
+            onEachFeature: onEachFeature
+        }).addTo(map);
+
+        let countyUrl = 'counties';
+
+        $.getJSON(countyUrl, function(data){
+            counties.addData(data);
+        });
+
+        // ----------------------------------------- Set up Animals --------------------------------------------
+        let animals = L.geoJSON(null, {
+            pointToLayer: function (feature, latlng) {
+                return L.marker(latlng, {
+                    icon: L.icon({
+                        iconUrl: "static/img/Twitter.png",
+                        iconSize: [28,32],
+                        iconAnchor:[12,28],
+                        popupAnchor: [0,-25]
+                    }),
+                    title:feature.properties.display_na,
+                    riseOnHover: true
+                });
+            },
+
+            onEachFeature: function (feature, layer) {
+                if (feature.properties) {
+                    let content = "<table class='table table-striped table-bordered table-condensed'>" +
+                        "<tr><th>Title</th><td>" + "Pet" + "</td></tr>" +
+                        "<tr><th>Ort</th><td>" + feature.properties.ort + "</td></tr>" +
+                        "<tr><th>Address</th><td>" + feature.properties.display_na + "</td></tr>" + "<table>";
+
+                    layer.on({
+                        click: function(e) {
+                            layer.bindPopup(content).openPopup(e.latlng)
+                        }
+                    })
+                }
+            }
+        }).addTo(map);
+
+        let animalsUrl = 'animals';
+
+        $.getJSON(animalsUrl, function(data) {
+            animals.addData(data);
+        });
+
+
+        // ----------------------------------------- Info Control ----------------------------------------------
+        var baseLayers = {
+            "Open Street Map": osm,
+            "Topo Map": topo,
+            "Satellit": satellit
+        };
+
+        var groupedOverlayers = {
+            "Locations": {
+                "Administrative Locations": locations,
+            },
+            "Counties": {
+                "Administrative Counties": counties
+            },
+            "Animals": {
+                "Administrative Pets": animals
+            },
+        };
+
+        // control that shows county info on hover
+        var info = L.control();
+
+        info.onAdd = function(props) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        }
+
+        info.update = function(props) {
+        this._div.innerHTML = '<h4>Pet-County Atlas</h4>' + (props ?
+            '<h5>' + props.name + '</h5>'+
+            'House animal: '+ '<b>' + props.animal_cou + ' pets' + '</b><br />'+
+            'Parks size: ' + '<b>'+ props.parksize + ' km' +'&sup2;' +'</b><br />'+
+            'Density: ' + '<b>'+ props.density + ' persons/km' + '&sup2;' + '</b><br />'+
+            'Rent: ' + '<b>'+ props.rent + ' €/m' + '&sup2;' + '</b><br />'
+
+        : 'Hover mouse over a county');
+    };
+
+    info.addTo(map);
+
+
+
+    // Maps Tools
+    L.control.groupedLayers(baseLayers, groupedOverlayers).addTo(map);
+    L.control.mousePosition({position: "topright",}).addTo(map);
+    L.control.scale().addTo(map);
+
+    // create the geocoding control and add it to the map
+    var searchControl = L.esri.Geocoding.geosearch().addTo(map);
+
+    // create an empty layer group to store the results and add it to the map
+    var results = L.layerGroup().addTo(map);
+
+    // listen for the results event and add every result to the map
+    searchControl.on("results", function(data) {
+        results.clearLayers();
+        for (var i = data.results.length - 1; i >= 0; i--) {
+            results.addLayer(L.marker(data.results[i].latlng));
+        }
+    });
+
+
+
+
+
+
+
+    </script>
+</html>
